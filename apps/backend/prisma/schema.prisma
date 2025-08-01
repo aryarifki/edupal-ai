@@ -1,0 +1,338 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  role          Role      @default(STUDENT)
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts         Account[]
+  sessions         Session[]
+  studentProfile   Student?
+  teacherProfile   Teacher?
+  assignments      Assignment[]
+  submissions      Submission[]
+  quizAttempts     QuizAttempt[]
+  notifications    Notification[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+model Student {
+  id           String @id @default(cuid())
+  userId       String @unique
+  grade        String?
+  school       String?
+  subjects     String[] // JSON array of subjects
+  preferences  Json?    // Learning preferences
+  
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classrooms   ClassroomStudent[]
+  progress     StudentProgress[]
+  
+  @@map("students")
+}
+
+model Teacher {
+  id           String @id @default(cuid())
+  userId       String @unique
+  school       String?
+  department   String?
+  subjects     String[] // JSON array of subjects taught
+  
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classrooms   Classroom[]
+  rubrics      Rubric[]
+  
+  @@map("teachers")
+}
+
+model Classroom {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  grade       String?
+  code        String   @unique // Classroom join code
+  teacherId   String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  teacher     Teacher            @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  students    ClassroomStudent[]
+  assignments Assignment[]
+  
+  @@map("classrooms")
+}
+
+model ClassroomStudent {
+  id          String   @id @default(cuid())
+  classroomId String
+  studentId   String
+  joinedAt    DateTime @default(now())
+  
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@unique([classroomId, studentId])
+  @@map("classroom_students")
+}
+
+model Assignment {
+  id           String            @id @default(cuid())
+  title        String
+  description  String?
+  subject      String
+  totalPoints  Float
+  dueDate      DateTime?
+  classroomId  String?
+  createdById  String
+  rubricId     String?
+  isPublished  Boolean           @default(false)
+  allowOcr     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  
+  createdBy    User              @relation(fields: [createdById], references: [id])
+  classroom    Classroom?        @relation(fields: [classroomId], references: [id])
+  rubric       Rubric?           @relation(fields: [rubricId], references: [id])
+  submissions  Submission[]
+  problems     AssignmentProblem[]
+  
+  @@map("assignments")
+}
+
+model AssignmentProblem {
+  id           String     @id @default(cuid())
+  assignmentId String
+  problemText  String     @db.Text
+  maxPoints    Float
+  order        Int
+  
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  solutions    Solution[]
+  
+  @@map("assignment_problems")
+}
+
+model Submission {
+  id           String            @id @default(cuid())
+  assignmentId String
+  studentId    String
+  fileUrl      String?
+  ocrText      String?           @db.Text
+  status       SubmissionStatus  @default(PENDING)
+  totalScore   Float?
+  feedback     String?           @db.Text
+  submittedAt  DateTime          @default(now())
+  gradedAt     DateTime?
+  
+  assignment   Assignment        @relation(fields: [assignmentId], references: [id])
+  student      User              @relation(fields: [studentId], references: [id])
+  solutions    Solution[]
+  
+  @@unique([assignmentId, studentId])
+  @@map("submissions")
+}
+
+model Solution {
+  id                String             @id @default(cuid())
+  submissionId      String
+  problemId         String
+  studentAnswer     String?            @db.Text
+  aiSolution        String?            @db.Text
+  stepByStep        Json?              // AI-generated step-by-step solution
+  score             Float?
+  maxScore          Float
+  feedback          String?            @db.Text
+  concepts          String[]           // Identified concepts
+  errors            Json?              // Detected errors with explanations
+  isCorrect         Boolean            @default(false)
+  processingStatus  ProcessingStatus   @default(PENDING)
+  
+  submission        Submission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  problem           AssignmentProblem  @relation(fields: [problemId], references: [id])
+  
+  @@map("solutions")
+}
+
+model Rubric {
+  id          String      @id @default(cuid())
+  name        String
+  subject     String
+  teacherId   String
+  criteria    Json        // Rubric criteria as JSON
+  isDefault   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  teacher     Teacher     @relation(fields: [teacherId], references: [id])
+  assignments Assignment[]
+  
+  @@map("rubrics")
+}
+
+model Quiz {
+  id          String        @id @default(cuid())
+  title       String
+  subject     String
+  difficulty  Difficulty    @default(MEDIUM)
+  questions   Json          // Quiz questions as JSON
+  timeLimit   Int?          // Time limit in minutes
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  
+  attempts    QuizAttempt[]
+  
+  @@map("quizzes")
+}
+
+model QuizAttempt {
+  id          String    @id @default(cuid())
+  quizId      String
+  studentId   String
+  answers     Json      // Student answers as JSON
+  score       Float
+  maxScore    Float
+  timeSpent   Int       // Time spent in seconds
+  completedAt DateTime  @default(now())
+  
+  quiz        Quiz      @relation(fields: [quizId], references: [id])
+  student     User      @relation(fields: [studentId], references: [id])
+  
+  @@map("quiz_attempts")
+}
+
+model StudentProgress {
+  id             String   @id @default(cuid())
+  studentId      String
+  subject        String
+  concept        String
+  masteryLevel   Float    @default(0) // 0-1 scale
+  practiceCount  Int      @default(0)
+  lastPracticed  DateTime?
+  weakAreas      String[] // Areas needing improvement
+  updatedAt      DateTime @updatedAt
+  
+  student        Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@unique([studentId, subject, concept])
+  @@map("student_progress")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  data      Json?            // Additional notification data
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+model ApiUsage {
+  id        String   @id @default(cuid())
+  provider  String   // "openai", "kimi", etc.
+  endpoint  String
+  tokens    Int
+  cost      Float?
+  success   Boolean
+  createdAt DateTime @default(now())
+  
+  @@map("api_usage")
+}
+
+// Enums
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum SubmissionStatus {
+  PENDING
+  PROCESSING
+  GRADED
+  RETURNED
+  DRAFT
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum NotificationType {
+  ASSIGNMENT_GRADED
+  NEW_ASSIGNMENT
+  QUIZ_COMPLETED
+  PROGRESS_UPDATE
+  SYSTEM
+}
