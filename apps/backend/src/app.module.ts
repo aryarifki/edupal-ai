@@ -7,11 +7,6 @@ import { UsersModule } from './users/users.module';
 import { AssignmentsModule } from './assignments/assignments.module';
 import { SubmissionsModule } from './submissions/submissions.module';
 import { AiModule } from './ai/ai.module';
-import { FileUploadModule } from './file-upload/file-upload.module';
-import { QuizModule } from './quiz/quiz.module';
-import { NotificationsModule } from './notifications/notifications.module';
-import { WebsocketModule } from './websocket/websocket.module';
-import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -29,11 +24,6 @@ import { AnalyticsModule } from './analytics/analytics.module';
     AssignmentsModule,
     SubmissionsModule,
     AiModule,
-    FileUploadModule,
-    QuizModule,
-    NotificationsModule,
-    WebsocketModule,
-    AnalyticsModule,
   ],
   controllers: [],
   providers: [],
