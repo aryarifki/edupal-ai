@@ -36,3 +36,24 @@ async solveProblem(problemText: string, subject: string): Promise<any> {
     );
   }
 }
+@Injectable()
+export class AiService {
+  constructor(private configService: ConfigService) {
+    // Validasi API keys saat service di-inisialisasi
+    this.validateConfiguration();
+  }
+
+  private validateConfiguration() {
+    const requiredKeys = [
+      'OPENAI_API_KEY',
+      'KIMI_API_KEY',
+      'KIMI_API_BASE'
+    ];
+
+    const missing = requiredKeys.filter(key => !this.configService.get(key));
+    
+    if (missing.length > 0) {
+      throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    }
+  }
+  }
