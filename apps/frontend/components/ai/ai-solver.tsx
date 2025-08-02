@@ -19,58 +19,30 @@ export default function AISolver({ problemText, onSolutionGenerated }: AISolverP
     setError('')
 
     try {
-      // Mock AI processing - replace with real API calls later
-      await new Promise(resolve => setTimeout(resolve, 3000)) // Simulate AI processing
+      // Make real API call to backend
+      const response = await fetch('/api/ai/solve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          problemText,
+          subject: 'mathematics', // Default subject, can be made dynamic
+        }),
+      })
 
-      // Generate mock solution based on problem type
-      let mockSolution
-      if (problemText.toLowerCase().includes('quadratic')) {
-        mockSolution = {
-          solution: 'x = -3 or x = 1/2',
-          stepByStep: [
-            { step: 1, description: 'Identify the quadratic equation: 2x² + 5x - 3 = 0', explanation: 'This is in standard form ax² + bx + c = 0 where a=2, b=5, c=-3' },
-            { step: 2, description: 'Apply the quadratic formula: x = (-b ± √(b² - 4ac)) / 2a', explanation: 'This formula works for any quadratic equation' },
-            { step: 3, description: 'Calculate the discriminant: b² - 4ac = 25 - 4(2)(-3) = 25 + 24 = 49', explanation: 'The discriminant tells us about the nature of roots' },
-            { step: 4, description: 'Substitute values: x = (-5 ± √49) / 4 = (-5 ± 7) / 4', explanation: 'Since √49 = 7' },
-            { step: 5, description: 'Solve for both values: x = (-5 + 7)/4 = 1/2 and x = (-5 - 7)/4 = -3', explanation: 'These are the two solutions' }
-          ],
-          concepts: ['Quadratic Equations', 'Quadratic Formula', 'Discriminant'],
-          confidence: 0.95,
-          errors: []
-        }
-      } else if (problemText.toLowerCase().includes('velocity') || problemText.toLowerCase().includes('height')) {
-        mockSolution = {
-          solution: 'Maximum height = 20.4 meters, Time to reach max height = 2.04 seconds',
-          stepByStep: [
-            { step: 1, description: 'Given: Initial velocity u = 20 m/s, acceleration due to gravity g = 9.8 m/s²', explanation: 'These are the known values from the problem' },
-            { step: 2, description: 'At maximum height, final velocity v = 0', explanation: 'The ball stops momentarily at the highest point' },
-            { step: 3, description: 'Use equation: v² = u² - 2gh', explanation: 'This kinematic equation relates velocity, acceleration, and displacement' },
-            { step: 4, description: 'Substitute: 0² = 20² - 2(9.8)h', explanation: 'Solving for height h' },
-            { step: 5, description: 'Solve: h = 400 / 19.6 = 20.4 meters', explanation: 'This is the maximum height reached' }
-          ],
-          concepts: ['Kinematics', 'Projectile Motion', 'Gravity'],
-          confidence: 0.92,
-          errors: []
-        }
-      } else {
-        mockSolution = {
-          solution: 'AI analysis complete - solution provided based on problem context',
-          stepByStep: [
-            { step: 1, description: 'Problem analysis: Examining the given information', explanation: 'Breaking down the problem components' },
-            { step: 2, description: 'Method selection: Choosing appropriate solution approach', explanation: 'Based on problem type and complexity' },
-            { step: 3, description: 'Solution process: Applying mathematical principles', explanation: 'Step-by-step calculation' },
-            { step: 4, description: 'Verification: Checking the solution for accuracy', explanation: 'Ensuring the answer makes sense' }
-          ],
-          concepts: ['Problem Solving', 'Mathematical Reasoning'],
-          confidence: 0.85,
-          errors: []
-        }
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to get AI solution')
       }
 
-      setSolution(mockSolution)
-      onSolutionGenerated(mockSolution)
+      const aiSolution = await response.json()
+      setSolution(aiSolution)
+      onSolutionGenerated(aiSolution)
     } catch (err) {
-      setError('Failed to generate solution. Please try again.')
+      console.error('AI Solver Error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate solution. Please try again.'
+      setError(errorMessage)
     } finally {
       setIsProcessing(false)
     }
